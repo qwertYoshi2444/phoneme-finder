@@ -1,61 +1,73 @@
+<!-- START OF FILE index.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人力VOCALOID用 音素検索ツール v16</title>
+    <title>人力VOCALOID用 音素検索ツール v20</title>
     
     <link rel="icon" href="./icons/icon-192.png" type="image/png">
     <link rel="apple-touch-icon" href="./icons/icon-512.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#ffffff">
+    
+    <!-- Kuromoji.js (using jsDelivr CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js" onload="onKuromojiLoaded()" onerror="onKuromojiError()"></script>
+
     <style>
         :root {
             /* Palette */
-            --bg-body: #f1f5f9; --bg-panel: #ffffff; --border-color: #cbd5e1;
-            --text-main: #0f172a; --text-sub: #475569;
-            --accent: #2563eb; --accent-hover: #1d4ed8;
-            --highlight-bg: #fde047; --highlight-text: #422006;
-            --missing-bg: #fee2e2; --missing-text: #991b1b;
+            --bg-body: #f8fafc; --bg-panel: #ffffff; --border-color: #cbd5e1;
+            --text-main: #0f172a; --text-sub: #64748b;
+            --accent: #3b82f6; --accent-hover: #2563eb;
+            --highlight-bg: #facc15; --highlight-text: #422006;
+            --missing-bg: #fee2e2; --missing-text: #b91c1c;
             --pinned-bg: #86efac; --pinned-text: #14532d;
             --pinned-hover: #4ade80;
-            --cell-0-bg: #f8fafc; --cell-0-text: #cbd5e1;
+            --cell-0-bg: #f1f5f9; --cell-0-text: #cbd5e1;
             --cell-1-bg: #dbeafe; --cell-1-text: #1e40af;
             --cell-3-bg: #2563eb; --cell-3-text: #ffffff;
             --indicator-color: #dc2626;
             --header-height: 50px;
         }
 
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { height: var(--header-height); background: var(--bg-panel); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
-        h1 { font-size: 1rem; margin: 0; font-weight: 700; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { height: var(--header-height); background: var(--bg-panel); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        h1 { font-size: 1rem; margin: 0; font-weight: 700; color: #334155; }
         
         .container { display: flex; flex: 1; height: calc(100vh - var(--header-height)); overflow: hidden; }
         
         /* Input Panel */
         .input-panel { 
-            width: 320px; 
-            min-width: 200px; 
+            width: 350px; 
+            min-width: 250px; 
             max-width: 90vw; 
-            background: #f8fafc; 
+            background: #fff; 
             display: flex; 
             flex-direction: column; 
             padding: 20px; 
             gap: 15px; 
             overflow-y: auto; 
             flex-shrink: 0; 
+            border-right: 1px solid var(--border-color);
         }
-        .resizer { width: 5px; cursor: col-resize; background: var(--border-color); transition: 0.2s; flex-shrink: 0; z-index: 10; }
-        .resizer:hover, .resizer.resizing { background: var(--accent); }
+        .resizer { width: 5px; cursor: col-resize; background: transparent; margin-left: -2px; z-index: 10; flex-shrink: 0; }
+        .resizer:hover { background: var(--accent); opacity: 0.5; }
         
-        label { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; display: block; }
-        textarea, select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; background: #fff; }
-        textarea { height: 120px; resize: vertical; }
-        textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+        label { font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; display: block; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em; }
+        textarea, select, input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; background: #f8fafc; transition: 0.2s; }
+        textarea { height: 100px; resize: vertical; }
+        textarea:focus, select:focus, input:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
-        button#btn-analyze { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-top: 5px; }
-        button#btn-analyze:hover { background: var(--accent-hover); }
-        button#btn-analyze:disabled { background: #cbd5e1; cursor: wait; }
+        .mode-switch { display: flex; gap: 0; background: #f1f5f9; padding: 4px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .mode-switch label { flex: 1; text-align: center; cursor: pointer; margin: 0; padding: 6px; border-radius: 6px; font-size: 0.85rem; color: var(--text-sub); transition: 0.2s; font-weight: 600; text-transform: none; display: flex; align-items: center; justify-content: center; gap: 5px;}
+        .mode-switch input { display: none; }
+        .mode-switch input:checked + span { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .mode-switch span { display: block; width: 100%; padding: 4px; border-radius: 5px; }
+
+        button#btn-analyze { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-top: 5px; transition: 0.2s; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); }
+        button#btn-analyze:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        button#btn-analyze:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; transform: none; box-shadow: none; }
 
         .progress-container { margin-top: 8px; }
         .progress-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-sub); margin-bottom: 4px; }
@@ -65,104 +77,151 @@
 
         /* Workspace */
         .workspace-panel { flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); overflow: hidden; }
-        .display-area { flex: 1; overflow-y: auto; padding: 40px; }
-        h2 { font-size: 0.95rem; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin: 0 0 20px 0; font-weight: 800; color: var(--text-main); }
+        .display-area { flex: 1; overflow-y: auto; padding: 30px 40px; }
+        h2 { font-size: 0.9rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin: 0 0 20px 0; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; }
         
         /* Lyrics Section */
-        .lyrics-wrapper { margin-bottom: 30px; }
-        .lyrics-content { font-size: 1.6rem; line-height: 2.2; letter-spacing: 0.05em; color: var(--text-main); }
-        .char-span { cursor: pointer; padding: 3px 1px; border-radius: 3px; border-bottom: 2px solid transparent; transition: background 0.1s; }
-        .char-span:hover { background: #e2e8f0; }
-        .char-span.active-highlight { background: var(--highlight-bg); color: var(--highlight-text); font-weight: 600; }
-        .char-span.missing { background: var(--missing-bg); color: var(--missing-text); border-bottom-color: var(--missing-text); }
-        .char-span.pinned { background: var(--pinned-bg); color: var(--pinned-text); font-weight: 600; border-bottom-color: var(--pinned-text); }
+        .lyrics-wrapper { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; margin-bottom: 40px; line-height: 1.2; }
+        .lyrics-break { flex-basis: 100%; height: 10px; } /* New line break */
+        
+        .word-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+        .word-unit:hover { background: #f8fafc; }
+
+        .word-original {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            font-weight: 500;
+            user-select: none;
+        }
+
+        .word-phonemes {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .char-span { 
+            cursor: pointer; 
+            padding: 4px 6px; 
+            font-size: 1.1rem;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-weight: 600;
+            color: #334155;
+            transition: all 0.1s;
+            border-right: 1px solid #e2e8f0;
+            min-width: 14px;
+            text-align: center;
+        }
+        .char-span:last-child { border-right: none; }
+        
+        .char-span:hover { background: #e2e8f0; color: var(--text-main); }
+        .char-span.active-highlight { background: var(--highlight-bg); color: var(--highlight-text); border-color: rgba(0,0,0,0.1); }
+        .char-span.missing { background: var(--missing-bg); color: var(--missing-text); }
+        .char-span.pinned { background: var(--pinned-bg); color: var(--pinned-text); }
         .char-span.pinned:hover { background: var(--pinned-hover); }
 
-        /* Sequence List (Detailed View) */
-        .sequence-wrapper { margin-bottom: 50px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        /* Sequence List */
+        .sequence-wrapper { margin-bottom: 50px; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .sequence-list { display: flex; flex-direction: column; gap: 8px; }
         .seq-item { 
-            background: #fff; 
-            border: 1px solid #bbf7d0; 
-            border-left: 5px solid #22c55e; 
-            padding: 12px 15px; 
-            border-radius: 6px; 
-            width: 100%; 
-            box-sizing: border-box;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: #fff; border: 1px solid #bbf7d0; border-left: 4px solid #22c55e; 
+            padding: 10px 15px; border-radius: 6px; width: 100%; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .seq-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; border-bottom: 1px solid #f0fdf4; padding-bottom: 5px; gap: 10px; }
-        .seq-info-group { display: flex; flex-direction: column; flex: 1; }
-        .seq-lyric { font-weight: 800; color: #15803d; font-size: 1.1rem; }
-        .seq-meta { display: flex; gap: 10px; font-size: 0.85rem; color: #64748b; align-items: center; margin-top: 2px;}
-        .seq-filename { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; border: 1px solid #e2e8f0; color: #475569; }
-        .seq-content { font-size: 0.9rem; color: #334155; line-height: 1.6; word-break: break-all; margin-top: 5px; }
-        .seq-arrow { text-align: center; color: #94a3b8; font-size: 1.5rem; font-weight: bold; margin: -5px 0; line-height: 1;}
+        .seq-lyric { font-weight: 800; color: #166534; font-size: 1.1rem; margin-right: 15px; min-width: 40px; }
+        .seq-meta { font-size: 0.8rem; color: #64748b; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .seq-arrow { text-align: center; color: #cbd5e1; font-size: 1.2rem; margin: -6px 0; }
 
         /* Table */
-        .table-wrapper { margin-top: 10px; width: 100%; overflow-x: auto; }
-        .gojyuon-grid { display: grid; grid-template-columns: repeat(15, minmax(28px, 1fr)); gap: 4px; margin-top: 10px; }
-        .gojyuon-cell { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 0.9rem; font-weight: 600; cursor: pointer; position: relative; border: 1px solid transparent; overflow: hidden; }
-        .gojyuon-cell:hover:not(.empty) { transform: translateY(-2px); z-index: 2; box-shadow: 0 3px 6px rgba(0,0,0,0.15); border-color: rgba(0,0,0,0.1); overflow: visible; }
-        .gojyuon-cell.empty { cursor: default; }
-        .gojyuon-cell.heat-0 { background: var(--cell-0-bg); color: var(--cell-0-text); border: 1px solid #f1f5f9; }
-        .gojyuon-cell.heat-1 { background: var(--cell-1-bg); color: var(--cell-1-text); }
-        .gojyuon-cell.heat-3 { background: var(--cell-3-bg); color: var(--cell-3-text); }
-        .gojyuon-cell.used::after { content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0; border-style: solid; border-width: 0 12px 12px 0; border-color: transparent var(--indicator-color) transparent transparent; }
+        .table-wrapper { margin-top: 10px; width: 100%; overflow-x: auto; padding-bottom: 10px; }
+        .gojyuon-grid { display: grid; grid-template-columns: repeat(15, minmax(24px, 1fr)); gap: 3px; margin-top: 10px; }
+        .romaji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 4px; margin-top: 10px; }
+        
+        .cell-box { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; position: relative; border: 1px solid transparent; overflow: hidden; background: #fff; border:1px solid #e2e8f0; color: #64748b; }
+        .cell-box:hover:not(.empty) { transform: translateY(-2px); z-index: 2; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-color: var(--accent); color: var(--accent); overflow: visible; }
+        .cell-box.empty { cursor: default; background: transparent; border: none; }
+        .cell-box.heat-0 { background: #f8fafc; color: #cbd5e1; border-color: #f1f5f9; }
+        .cell-box.heat-1 { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+        .cell-box.heat-3 { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
+        .cell-box.used::after { content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0; border-style: solid; border-width: 0 8px 8px 0; border-color: transparent var(--indicator-color) transparent transparent; }
 
-        .legend-container { display: flex; gap: 20px; margin-bottom: 15px; font-size: 0.75rem; flex-wrap: wrap; font-weight: 600; }
+        .legend-container { display: flex; gap: 15px; margin-bottom: 15px; font-size: 0.7rem; flex-wrap: wrap; font-weight: 600; color: var(--text-sub); }
         .legend-item { display: flex; align-items: center; gap: 6px; }
-        .legend-box { width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); }
+        .legend-box { width: 12px; height: 12px; border-radius: 2px; }
 
         /* Result Panel */
-        .result-panel { width: 340px; background: #fff; border-left: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; overflow-y: auto; flex-shrink: 0; }
+        .result-panel { width: 340px; background: #fff; border-left: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; overflow-y: auto; flex-shrink: 0; box-shadow: -1px 0 5px rgba(0,0,0,0.02); }
         .result-group { margin-bottom: 20px; }
-        .result-group-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 10px; padding-left: 8px; border-left: 3px solid var(--border-color); }
+        .result-group-title { font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; padding-left: 8px; border-left: 3px solid var(--accent); color: var(--text-sub); text-transform: uppercase; }
         .result-card { background: #fff; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.85rem; margin-bottom: 8px; transition: 0.1s; position: relative; }
-        .result-card:hover { border-color: var(--accent); }
-        .card-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-weight: 700; align-items: center; }
+        .result-card:hover { border-color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-weight: 700; align-items: center; color: var(--text-main); }
         .card-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; background: #f1f5f9; color: var(--text-sub); border: 1px solid var(--border-color); flex-shrink: 0; }
         
-        .card-file-row { display: flex; gap: 5px; margin-bottom: 6px; align-items: center; }
-        .card-filename { font-family: monospace; font-size: 0.75rem; color: #475569; background: #f8fafc; padding: 2px 4px; border-radius: 3px; border: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-        .btn-copy { border: 1px solid var(--border-color); background: #fff; cursor: pointer; border-radius: 3px; font-size: 0.7rem; padding: 2px 6px; color: var(--accent); font-weight: 600; }
-        .btn-copy:hover { background: #f0f9ff; border-color: var(--accent); }
+        .card-reading-row { font-size: 0.9rem; color: #0f172a; margin-bottom: 4px; line-height: 1.4; word-break: break-all; }
+        .card-file-row { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; }
+        .card-filename { font-family: monospace; font-size: 0.7rem; color: #475569; background: #f8fafc; padding: 3px 6px; border-radius: 3px; border: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .btn-copy { border: 1px solid var(--border-color); background: #fff; cursor: pointer; border-radius: 3px; font-size: 0.7rem; padding: 3px 8px; color: var(--accent); font-weight: 600; transition:0.1s; }
+        .btn-copy:hover { background: #eff6ff; border-color: var(--accent); }
         .btn-copy:active { background: var(--accent); color: #fff; }
-
-        .card-content { color: var(--text-sub); line-height: 1.5; word-break: break-all; margin-bottom: 8px;}
         .highlight-text { background: var(--highlight-bg); color: var(--highlight-text); font-weight: 700; padding: 0 3px; border-radius: 2px; }
 
-        /* Pin Button */
-        .btn-pin { width: 100%; background: #f1f5f9; border: 1px solid var(--border-color); color: var(--text-sub); padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .btn-pin:hover { background: #e2e8f0; color: var(--text-main); }
+        .btn-pin { width: 100%; background: #f8fafc; border: 1px solid var(--border-color); color: var(--text-sub); padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; transition:0.1s; }
+        .btn-pin:hover { background: #f1f5f9; color: var(--text-main); border-color: #94a3b8; }
         .btn-pin.pinned { background: var(--pinned-bg); color: var(--pinned-text); border-color: var(--pinned-text); }
 
         /* Tooltip */
-        #tooltip { position: fixed; background: rgba(15, 23, 42, 0.98); color: #fff; padding: 12px; border-radius: 6px; font-size: 0.8rem; pointer-events: none; z-index: 1000; display: none; max-width: 350px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .tt-header { color: var(--highlight-bg); font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 5px; margin-bottom: 5px; }
+        #tooltip { position: fixed; background: rgba(15, 23, 42, 0.95); color: #fff; padding: 12px; border-radius: 6px; font-size: 0.75rem; pointer-events: none; z-index: 1000; display: none; max-width: 320px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); backdrop-filter: blur(4px); }
+        .tt-header { color: var(--highlight-bg); font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 5px; margin-bottom: 5px; font-size: 0.85rem; }
         .tt-pinned-header { color: #86efac; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 5px; margin-bottom: 5px; }
-        .tt-row { margin-bottom: 5px; color: #e2e8f0; display: flex; gap: 8px; line-height: 1.4; align-items: flex-start; }
-        .tt-row small { color: #94a3b8; flex-shrink: 0; min-width: 50px; }
-        .tt-file { font-family: monospace; font-size: 0.7rem; color: #cbd5e1; display: block; margin-top: 2px; opacity: 0.8; }
+        .tt-row { margin-bottom: 8px; color: #e2e8f0; display: flex; gap: 10px; line-height: 1.4; align-items: baseline; }
+        .tt-reading { font-size: 0.9rem; color: #fff; margin-bottom: 2px; }
+        .tt-file { font-family: monospace; font-size: 0.7rem; color: #94a3b8; display: block; opacity: 0.8; word-break: break-all; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>音素探しツール v16 (ファイル名対応版)</h1>
+    <h1>人力VOCALOID用 音素検索ツール v20</h1>
 </header>
 
 <div class="container">
     <div class="input-panel">
         <div>
-            <label for="input-lyrics">歌詞</label>
-            <textarea id="input-lyrics" placeholder="歌詞を平仮名で入力してください"></textarea>
+            <label>分析モード</label>
+            <div class="mode-switch">
+                <label>
+                    <input type="radio" name="mode" value="kana" checked>
+                    <span>あ 平仮名</span>
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="romaji">
+                    <span>A ローマ字</span>
+                </label>
+            </div>
         </div>
         <div>
-            <label for="input-serifu">セリフ素材 (キャラ名@内容@ファイル名#)</label>
+            <label for="input-lyrics">歌詞 (日本語のみ対応)</label>
+            <textarea id="input-lyrics" placeholder="歌詞データを入力..."></textarea>
+        </div>
+        <div>
+            <label for="input-serifu">セリフ素材 (キャラ名@セリフ#)</label>
             <textarea id="input-serifu" placeholder="例：
-キャラA@こんにちは@voice_01.wav#
-キャラA@さようなら@voice_02.wav#"></textarea>
+キャラA@おはよう#
+キャラA@出発進行！#"></textarea>
+            <div style="font-size:0.7rem; color:var(--text-sub); margin-top:4px;">※ファイル名から自動で読みを抽出します</div>
         </div>
         <div>
             <label for="select-max-len">連続音検出設定</label>
@@ -171,37 +230,211 @@
                 <option value="3">3文字まで</option>
                 <option value="4">4文字まで</option>
                 <option value="5" selected>5文字まで</option>
+                <option value="6">6文字まで</option>
+                <option value="8">8文字まで</option>
+                <option value="12">12文字まで</option>
             </select>
         </div>
-        <button id="btn-analyze">分析開始</button>
+        <button id="btn-analyze" disabled>ライブラリ読込中...</button>
         <div class="progress-container">
-            <div class="progress-header"><span id="progress-text">待機中</span><span id="progress-percent">0%</span></div>
+            <div class="progress-header"><span id="progress-text">準備中</span><span id="progress-percent">0%</span></div>
             <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
         </div>
-        <div id="log-area">システム準備完了</div>
+        <div id="log-area">システム初期化中...</div>
     </div>
     <div id="resizer" class="resizer"></div>
     <div class="workspace-panel">
         <div class="display-area" id="display-area">
-            <div style="height:100%; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-weight:600;">左側の「分析開始」ボタンを押してください</div>
+            <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#94a3b8; font-weight:600; text-align:center;">
+                <p>左側の「分析開始」ボタンを押してください</p>
+                <p style="font-size:0.8rem; font-weight:400; margin-top:10px; opacity:0.8;">※初回のみ辞書ダウンロードのため時間がかかります</p>
+            </div>
         </div>
     </div>
     <div class="result-panel">
-        <h2>分析結果 / 候補選択</h2>
+        <h2>候補一覧</h2>
         <div id="result-list-content">
-            <p style="font-size:0.8rem; color:#64748b; text-align:center; margin-top:20px;">分析後、歌詞をクリックして<br>使用する素材を選んでください。</p>
+            <p style="font-size:0.8rem; color:#64748b; text-align:center; margin-top:30px; line-height:1.6;">
+                分析後、左側の音素をクリックして<br>使用する素材を選んでください。
+            </p>
         </div>
     </div>
 </div>
 <div id="tooltip"></div>
 
 <script>
-    const smallKana = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ";
+    // --- Global Controls for Library Loading ---
+    let isKuromojiLoaded = false;
+    
+    function onKuromojiLoaded() {
+        isKuromojiLoaded = true;
+        const btn = document.getElementById('btn-analyze');
+        const log = document.getElementById('log-area');
+        if(btn) {
+            btn.disabled = false;
+            btn.textContent = "分析開始";
+        }
+        if(log) log.textContent += "\n[システム] ライブラリ読み込み完了。";
+    }
+
+    function onKuromojiError() {
+        const btn = document.getElementById('btn-analyze');
+        const log = document.getElementById('log-area');
+        if(btn) {
+            btn.textContent = "読込エラー";
+            btn.style.background = "#ef4444";
+        }
+        if(log) log.textContent += "\n[エラー] ライブラリ(kuromoji.js)の読み込みに失敗しました。";
+    }
+
+    // --- Text Converter Class ---
+    class TextConverter {
+        constructor() {
+            this.tokenizer = null;
+            this.romajiMap = {
+                'ア': 'a', 'イ': 'i', 'ウ': 'u', 'エ': 'e', 'オ': 'o',
+                'カ': 'ka', 'キ': 'ki', 'ク': 'ku', 'ケ': 'ke', 'コ': 'ko',
+                'サ': 'sa', 'シ': 'shi', 'ス': 'su', 'セ': 'se', 'ソ': 'so',
+                'タ': 'ta', 'チ': 'chi', 'ツ': 'tsu', 'テ': 'te', 'ト': 'to',
+                'ナ': 'na', 'ニ': 'ni', 'ヌ': 'nu', 'ネ': 'ne', 'ノ': 'no',
+                'ハ': 'ha', 'ヒ': 'hi', 'フ': 'fu', 'ヘ': 'he', 'ホ': 'ho',
+                'マ': 'ma', 'ミ': 'mi', 'ム': 'mu', 'メ': 'me', 'モ': 'mo',
+                'ヤ': 'ya', 'ユ': 'yu', 'ヨ': 'yo',
+                'ラ': 'ra', 'リ': 'ri', 'ル': 'ru', 'レ': 're', 'ロ': 'ro',
+                'ワ': 'wa', 'ヲ': 'o', 'ン': 'nn',
+                'ガ': 'ga', 'ギ': 'gi', 'グ': 'gu', 'ゲ': 'ge', 'ゴ': 'go',
+                'ザ': 'za', 'ジ': 'ji', 'ズ': 'zu', 'ゼ': 'ze', 'ゾ': 'zo',
+                'ダ': 'da', 'ヂ': 'ji', 'ヅ': 'zu', 'デ': 'de', 'ド': 'do',
+                'バ': 'ba', 'ビ': 'bi', 'ブ': 'bu', 'ベ': 'be', 'ボ': 'bo',
+                'パ': 'pa', 'ピ': 'pi', 'プ': 'pu', 'ペ': 'pe', 'ポ': 'po',
+                'キャ': 'kya', 'キュ': 'kyu', 'キョ': 'kyo',
+                'シャ': 'sha', 'シュ': 'shu', 'ショ': 'sho',
+                'チャ': 'cha', 'チュ': 'chu', 'チョ': 'cho',
+                'ニャ': 'nya', 'ニュ': 'nyu', 'ニョ': 'nyo',
+                'ヒャ': 'hya', 'ヒュ': 'hyu', 'ヒョ': 'hyo',
+                'ミャ': 'mya', 'ミュ': 'myu', 'ミョ': 'myo',
+                'リャ': 'rya', 'リュ': 'ryu', 'リョ': 'ryo',
+                'ギャ': 'gya', 'ギュ': 'gyu', 'ギョ': 'gyo',
+                'ジャ': 'ja', 'ジュ': 'ju', 'ジョ': 'jo',
+                'ビャ': 'bya', 'ビュ': 'byu', 'ビョ': 'byo',
+                'ピャ': 'pya', 'ピュ': 'pyu', 'ピョ': 'pyo',
+                'ウィ': 'wi', 'ウェ': 'we', 'ウォ': 'wo',
+                'シェ': 'she', 'チェ': 'che', 'ティ': 'ti', 'ディ': 'di', 'デュ': 'dyu'
+            };
+        }
+
+        init() {
+            return new Promise((resolve, reject) => {
+                if(!isKuromojiLoaded || typeof kuromoji === 'undefined') {
+                    return reject(new Error("ライブラリがまだ読み込まれていません。"));
+                }
+                const DIC_URL = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
+                kuromoji.builder({ dicPath: DIC_URL }).build((err, tokenizer) => {
+                    if (err) return reject(err);
+                    this.tokenizer = tokenizer;
+                    resolve();
+                });
+            });
+        }
+
+        process(text) {
+            if (!this.tokenizer) return { hiragana: "", romaji: "", tokens: [] };
+
+            let procText = text;
+            if (procText.lastIndexOf('.') > 0) {
+                procText = procText.substring(0, procText.lastIndexOf('.'));
+            }
+
+            const tokens = this.tokenizer.tokenize(procText);
+            let hiraganaResult = "";
+            let romajiResult = "";
+            
+            const structuredTokens = tokens.map(token => {
+                const isSymbol = token.pos === "記号";
+                if(isSymbol) return { original: token.surface_form, kana: "", romaji: "", type: 'symbol' };
+
+                let reading = token.reading || token.surface_form;
+                if(!reading.match(/[\u30a0-\u30ff]/) && !reading.match(/[\u3040-\u309f]/)) {
+                     // Keep as is if no reading available
+                }
+
+                const kana = this.katakanaToHiragana(reading);
+                let romaji = "";
+                
+                if (token.pos === "助詞") {
+                    if (token.surface_form === "は") romaji = "wa";
+                    else if (token.surface_form === "へ") romaji = "e";
+                    else if (token.surface_form === "を") romaji = "o";
+                    else romaji = this.convertKatakanaToRomaji(reading);
+                } else {
+                    romaji = this.convertKatakanaToRomaji(reading);
+                }
+
+                // Important: Only add to result strings if it's NOT a symbol/space
+                hiraganaResult += kana;
+                romajiResult += romaji;
+
+                return {
+                    original: token.surface_form,
+                    kana: kana,
+                    romaji: romaji,
+                    type: 'word'
+                };
+            });
+
+            return {
+                hiragana: hiraganaResult, // Raw string for searching (no spaces)
+                romaji: romajiResult,     // Raw string for searching (no spaces)
+                tokens: structuredTokens   // Tokenized array for rendering
+            };
+        }
+
+        convertKatakanaToRomaji(katakana) {
+            let res = "";
+            for (let i = 0; i < katakana.length; i++) {
+                let char = katakana[i];
+                let nextChar = katakana[i + 1] || "";
+                let combo = char + nextChar;
+
+                if (this.romajiMap[combo]) {
+                    res += this.romajiMap[combo];
+                    i++;
+                    continue;
+                }
+                if (char === "ッ") {
+                    let nextRomajiFull = "";
+                    if(this.romajiMap[nextChar + (katakana[i+2]||"")]) {
+                         nextRomajiFull = this.romajiMap[nextChar + (katakana[i+2]||"")];
+                    } else if (this.romajiMap[nextChar]) {
+                         nextRomajiFull = this.romajiMap[nextChar];
+                    }
+                    if (nextRomajiFull) res += nextRomajiFull.charAt(0);
+                    continue;
+                }
+                if (char === "ー") continue; 
+
+                if (this.romajiMap[char]) res += this.romajiMap[char];
+                else res += char; 
+            }
+            return res;
+        }
+
+        katakanaToHiragana(str) {
+            return str.replace(/[\u30a1-\u30f6]/g, function(match) {
+                var chr = match.charCodeAt(0) - 0x60;
+                return String.fromCharCode(chr);
+            });
+        }
+    }
+
+    // --- Main Logic ---
     let serifuData = [];
-    let lyricsText = "";
-    // State for pinned items
+    let lyricsData = null; 
+    let currentMode = "kana"; 
     let pinnedState = {}; 
     let pinnedLookup = [];
+    let converter = new TextConverter();
+    let isConverterReady = false;
 
     const els = {
         btn: document.getElementById('btn-analyze'),
@@ -216,14 +449,20 @@
         pPercent: document.getElementById('progress-percent'),
         pFill: document.getElementById('progress-fill'),
         resizer: document.getElementById('resizer'),
-        inputPanel: document.querySelector('.input-panel')
+        inputPanel: document.querySelector('.input-panel'),
+        modeRadios: document.querySelectorAll('input[name="mode"]')
     };
 
-    // Resizer
+    els.modeRadios.forEach(r => r.addEventListener('change', (e) => {
+        currentMode = e.target.value;
+        if(currentMode === 'romaji') els.maxLen.value = "8";
+        else els.maxLen.value = "5";
+        log(`モード変更: ${currentMode === 'kana' ? '平仮名' : 'ローマ字'}`);
+    }));
+
     let isResizing = false;
     els.resizer.addEventListener('mousedown', (e) => {
         isResizing = true;
-        els.resizer.classList.add('resizing');
         document.body.style.cursor = 'col-resize';
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', stopResize);
@@ -238,294 +477,428 @@
     }
     function stopResize() {
         isResizing = false;
-        els.resizer.classList.remove('resizing');
         document.body.style.cursor = 'default';
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', stopResize);
     }
 
-    // Logger & Progress
-    function log(msg) { els.log.textContent += `[${new Date().toLocaleTimeString('ja-JP',{hour12:false})}] ${msg}\n`; els.log.scrollTop = els.log.scrollHeight; }
+    function log(msg) { els.log.textContent += `> ${msg}\n`; els.log.scrollTop = els.log.scrollHeight; }
     function updateProgress(percent, text) {
         const p = Math.min(100, Math.max(0, percent));
         els.pFill.style.width = `${p}%`;
         els.pPercent.textContent = `${Math.floor(p)}%`;
         if(text) els.pText.textContent = text;
     }
-
-    function toHiragana(str) { return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60)); }
     function escapeHtml(str) { if(!str) return ""; return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
-    // --- Main Analysis ---
     els.btn.addEventListener('click', async () => {
         els.btn.disabled = true;
         els.log.textContent = "";
         pinnedState = {}; 
-        pinnedLookup = [];
-        updateProgress(0, "初期化中...");
         
         try {
+            if (!isConverterReady) {
+                updateProgress(10, "辞書ダウンロード中...");
+                log("辞書データをロードしています...");
+                await converter.init();
+                isConverterReady = true;
+                log("辞書ロード完了");
+            }
+
+            updateProgress(30, "セリフデータ解析中...");
+            
             const rawSerifu = els.serifu.value;
             serifuData = [];
-            // Parse line by line with '#' delimiter
-            rawSerifu.split('#').forEach(line => {
-                // Split by '@'. Expecting Name@Content@FileName
-                const parts = line.trim().split('@');
+            const lines = rawSerifu.split('#');
+            
+            for(let i=0; i<lines.length; i++) {
+                const line = lines[i].trim();
+                if(!line) continue;
+                const parts = line.split('@');
                 if (parts.length >= 2) {
                     const name = parts[0].trim();
-                    const content = parts[1].trim();
-                    const filename = parts.length >= 3 ? parts[2].trim() : ""; // Optional 3rd part
-
+                    const filename = parts[1].trim();
+                    const conv = converter.process(filename);
+                    
                     serifuData.push({ 
                         name: name, 
-                        content: content, 
                         filename: filename,
-                        normalizedContent: toHiragana(content) 
+                        content: filename, 
+                        kana: conv.hiragana,
+                        romaji: conv.romaji
                     });
                 }
-            });
+            }
             log(`セリフ読込: ${serifuData.length}件`);
-            
-            lyricsText = els.lyrics.value;
-            if(!lyricsText) throw new Error("歌詞が入力されていません");
-            
-            pinnedLookup = new Array(lyricsText.length).fill(null);
 
+            updateProgress(50, "歌詞変換中...");
+            const rawLyrics = els.lyrics.value;
+            if(!rawLyrics) throw new Error("歌詞が入力されていません");
+            
+            // Handle Newlines correctly by processing line by line
+            const inputLines = rawLyrics.split(/\n/);
+            let fullKana = "";
+            let fullRomaji = "";
+            let allLinesData = [];
+
+            for(let l of inputLines) {
+                if(!l.trim()) {
+                    allLinesData.push({ type: 'break' });
+                    continue;
+                }
+                const lConv = converter.process(l);
+                fullKana += lConv.hiragana;
+                fullRomaji += lConv.romaji;
+                allLinesData.push({ type: 'content', tokens: lConv.tokens });
+                allLinesData.push({ type: 'break' }); // Add break after each line
+            }
+            
+            lyricsData = {
+                lines: allLinesData,
+                kana: fullKana,
+                romaji: fullRomaji
+            };
+            
+            const targetText = (currentMode === 'kana') ? lyricsData.kana : lyricsData.romaji;
+            // Lookup array maps global index (of concatenated string) to Pinned Match object
+            pinnedLookup = new Array(targetText.length).fill(null);
+
+            log(`モード: ${currentMode}, 文字数: ${targetText.length}`);
+            
             await renderUIAsync();
             updateProgress(100, "完了");
             log("全処理完了");
+
         } catch (e) {
             log(`エラー: ${e.message}`);
+            console.error(e);
             updateProgress(0, "停止");
         } finally {
-            els.btn.disabled = false;
+            if(isKuromojiLoaded) els.btn.disabled = false;
         }
     });
 
     async function renderUIAsync() {
         els.display.innerHTML = "";
+        const targetText = (currentMode === 'kana') ? lyricsData.kana : lyricsData.romaji;
         
-        // 1. Lyrics Section
-        const h2 = document.createElement('h2'); h2.textContent = "歌詞分析"; els.display.appendChild(h2);
+        const h2 = document.createElement('h2'); 
+        h2.textContent = `歌詞分析 (${currentMode === 'kana' ? '平仮名' : 'ローマ字'})`; 
+        els.display.appendChild(h2);
         
         const legend = document.createElement('div');
         legend.className = 'legend-container';
         legend.innerHTML = `
-            <div class="legend-item"><div class="legend-box" style="background:var(--missing-bg); border:1px solid var(--missing-text)"></div>不足</div>
-            <div class="legend-item"><div class="legend-box" style="background:var(--highlight-bg);"></div>ホバー</div>
-            <div class="legend-item"><div class="legend-box" style="background:var(--pinned-bg); border:1px solid var(--pinned-text)"></div>確定(ピン留め)</div>
+            <div class="legend-item"><div class="legend-box" style="background:var(--missing-bg); border:1px solid var(--missing-text)"></div> 不足</div>
+            <div class="legend-item"><div class="legend-box" style="background:var(--highlight-bg);"></div> 選択中</div>
+            <div class="legend-item"><div class="legend-box" style="background:var(--pinned-bg); border:1px solid var(--pinned-text)"></div> 確定</div>
         `;
         els.display.appendChild(legend);
 
+        // Container for Word Blocks
         const container = document.createElement('div');
-        container.className = 'lyrics-wrapper lyrics-content';
+        container.className = 'lyrics-wrapper';
         els.display.appendChild(container);
 
-        const totalChars = lyricsText.length;
-        const CHUNK_SIZE = 50; 
+        let globalIndex = 0;
+        
+        for (let lIndex = 0; lIndex < lyricsData.lines.length; lIndex++) {
+            const line = lyricsData.lines[lIndex];
+            
+            if (line.type === 'break') {
+                const br = document.createElement('div');
+                br.className = 'lyrics-break';
+                container.appendChild(br);
+                continue;
+            }
 
-        for (let i = 0; i < totalChars; i++) {
-            const char = lyricsText[i];
-            if (char === '\n') {
-                container.appendChild(document.createElement('br'));
-            } else {
-                const span = document.createElement('span');
-                span.textContent = char;
-                span.className = 'char-span';
-                span.id = `char-${i}`;
+            const tokens = line.tokens;
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                const textToRender = (currentMode === 'kana') ? token.kana : token.romaji;
                 
-                if (!/[\s\u3000,、.。!！?？]/.test(char)) {
-                    const seq = hasAnySequence(i);
+                // If it's a symbol or has no readable content (spaces are stripped in processing), verify
+                if(!textToRender) {
+                    // It's likely a symbol or space that was skipped in concatenation
+                    // Render original just for visual context if needed, but no ID
+                    if(token.type === 'symbol' && token.original.trim() !== '') {
+                        // Optional: render symbol block
+                    }
+                    continue;
+                }
+
+                // Create Unit
+                const unit = document.createElement('div');
+                unit.className = 'word-unit';
+
+                const originalDiv = document.createElement('div');
+                originalDiv.className = 'word-original';
+                originalDiv.textContent = token.original;
+                unit.appendChild(originalDiv);
+
+                const phonemesDiv = document.createElement('div');
+                phonemesDiv.className = 'word-phonemes';
+                
+                for(let j=0; j<textToRender.length; j++) {
+                    const char = textToRender[j];
+                    const currentIndex = globalIndex; // Strict sync with global string
+
+                    const span = document.createElement('span');
+                    span.textContent = char;
+                    span.className = 'char-span';
+                    span.id = `char-${currentIndex}`; 
+
+                    const seq = hasAnySequence(currentIndex);
                     const mono = hasMono(char);
                     if (!seq && !mono) span.classList.add('missing');
+
+                    span.addEventListener('mouseenter', e => onLyricsHover(e, currentIndex));
+                    span.addEventListener('mouseleave', onLyricsLeave);
+                    span.addEventListener('click', e => onLyricsClick(e, currentIndex));
+                    phonemesDiv.appendChild(span);
+                    
+                    globalIndex++; // Only increment for rendered chars that exist in search string
                 }
-                
-                span.addEventListener('mouseenter', e => onLyricsHover(e, i));
-                span.addEventListener('mouseleave', onLyricsLeave);
-                span.addEventListener('click', e => onLyricsClick(e, i));
-                container.appendChild(span);
-            }
-            if (i % CHUNK_SIZE === 0) {
-                updateProgress(10 + (i / totalChars) * 80, `歌詞分析中... ${i}/${totalChars}`);
-                await new Promise(r => requestAnimationFrame(r));
+                unit.appendChild(phonemesDiv);
+                container.appendChild(unit);
             }
         }
 
-        // 2. Sequence List Section
         const h2Seq = document.createElement('h2'); h2Seq.textContent = "構成リスト (接続順)"; h2Seq.style.marginTop="30px"; els.display.appendChild(h2Seq);
-        
         const seqWrapper = document.createElement('div');
         seqWrapper.className = 'sequence-wrapper';
         seqWrapper.innerHTML = `<div id="sequence-list" class="sequence-list"><span style="color:#94a3b8; font-size:0.9rem;">(まだピン留めされた素材はありません)</span></div>`;
         els.display.appendChild(seqWrapper);
 
-        // 3. Gojyuon Table
-        updateProgress(90, "50音表生成中...");
+        updateProgress(95, "マップ生成中...");
         await new Promise(r => requestAnimationFrame(r));
-        const h2Table = document.createElement('h2'); h2Table.textContent = "音素マップ (50音)"; h2Table.style.marginTop="40px"; els.display.appendChild(h2Table);
-        const usedSet = new Set();
-        for(let c of lyricsText) if(!/[\s\u3000,、.。!！?？]/.test(c)) usedSet.add(toHiragana(c));
-        renderGojyuonTransposed(usedSet);
+        
+        if (currentMode === 'kana') {
+            const h2Table = document.createElement('h2'); h2Table.textContent = "音素マップ (50音)"; h2Table.style.marginTop="40px"; els.display.appendChild(h2Table);
+            renderGojyuonTable(targetText);
+        } else {
+            const h2Table = document.createElement('h2'); h2Table.textContent = "音素マップ (ローマ字)"; h2Table.style.marginTop="40px"; els.display.appendChild(h2Table);
+            renderRomajiTable(targetText);
+        }
     }
 
-    // --- Search Logic & Scoring ---
+    // Helper to generate highlighted snippet
+    function getHighlightedSnippet(fullText, startIndex, length) {
+        const radius = 10;
+        const startCtx = Math.max(0, startIndex - radius);
+        const endCtx = Math.min(fullText.length, startIndex + length + radius);
+        
+        const pre = fullText.substring(startCtx, startIndex);
+        const target = fullText.substring(startIndex, startIndex + length);
+        const post = fullText.substring(startIndex + length, endCtx);
+        
+        return `${startCtx>0?'...':''}${escapeHtml(pre)}<span class="highlight-text">${escapeHtml(target)}</span>${escapeHtml(post)}${endCtx<fullText.length?'...':''}`;
+    }
+
+    function getSearchSource(item) {
+        return (currentMode === 'kana') ? item.kana : item.romaji;
+    }
+
     function hasAnySequence(index) {
+        const targetText = (currentMode === 'kana') ? lyricsData.kana : lyricsData.romaji;
         const max = parseInt(els.maxLen.value, 10);
         for(let len=2; len<=max; len++) {
-            if(index+len > lyricsText.length) break;
-            const sub = lyricsText.substring(index, index+len);
-            if(/[\s\u3000,、.。!！?？]/.test(sub)) break;
-            const target = toHiragana(sub);
-            for(let item of serifuData) if(item.normalizedContent.includes(target)) return true;
-        }
-        return false;
-    }
-    function hasMono(char) {
-        const t = toHiragana(char);
-        for(let item of serifuData) {
-            const txt = item.normalizedContent;
-            for(let j=0; j<txt.length; j++) {
-                if(txt[j] === t && !(j+1 < txt.length && smallKana.includes(txt[j+1]))) return true;
+            if(index+len > targetText.length) break;
+            const sub = targetText.substring(index, index+len);
+            for(let item of serifuData) {
+                if(getSearchSource(item).includes(sub)) return true;
             }
         }
         return false;
     }
+
+    function hasMono(char) {
+        for(let item of serifuData) {
+            const txt = getSearchSource(item);
+            if(txt.includes(char)) return true;
+        }
+        return false;
+    }
     
-    // Sort Helper: Prioritize start of sentence (cleanest sound)
-    function calculateScore(pos, fullText) {
-        // High score for start of string
+    function calculateScore(pos) {
         if(pos === 0) return 100;
-        // Check previous char
-        const prev = fullText[pos-1];
-        if(/[、。,.!！?？\s]/.test(prev)) return 90; // After punctuation
-        return 10; // Normal position
+        if(pos < 5) return 80;
+        return 50;
     }
 
     function searchSequence(index) {
+        const targetText = (currentMode === 'kana') ? lyricsData.kana : lyricsData.romaji;
         const max = parseInt(els.maxLen.value, 10);
         const results = [];
+        
         for(let len=max; len>=2; len--) {
-            if(index+len > lyricsText.length) continue;
-            const sub = lyricsText.substring(index, index+len);
-            if(/[\s\u3000,、.。!！?？]/.test(sub)) continue;
-            const target = toHiragana(sub);
+            if(index+len > targetText.length) continue;
+            const sub = targetText.substring(index, index+len);
+            
             const matches = [];
             serifuData.forEach(s => {
-                let pos = s.normalizedContent.indexOf(target);
+                const src = getSearchSource(s);
+                let pos = src.indexOf(sub);
                 while(pos !== -1) { 
-                    matches.push({ name: s.name, content: s.content, filename: s.filename, pos, target, len, type:'seq', idx: index }); 
-                    pos = s.normalizedContent.indexOf(target, pos+1); 
+                    matches.push({ 
+                        name: s.name, 
+                        content: s.content, // Filename (raw)
+                        kana: s.kana,
+                        romaji: s.romaji,
+                        filename: s.filename, 
+                        pos, 
+                        target: sub, 
+                        len, 
+                        type:'seq', 
+                        idx: index 
+                    }); 
+                    pos = src.indexOf(sub, pos+1); 
                 }
             });
             if(matches.length) {
-                // Sort by score (cleaner sounds first)
-                matches.sort((a,b) => calculateScore(b.pos, b.content) - calculateScore(a.pos, a.content));
+                matches.sort((a,b) => calculateScore(b.pos) - calculateScore(a.pos));
                 results.push({ len, target: sub, matches });
             }
         }
         return results;
     }
+
     function searchMono(char, index) {
-        const target = toHiragana(char);
         const matches = [];
-        if(/[\s\u3000,、.。!！?？]/.test(char)) return { matches: [], skipped: 0 };
-        let skipped = 0;
+        if(char === ' ') return { matches: [], skipped: 0 };
+        
         serifuData.forEach(s => {
-            const txt = s.normalizedContent;
-            for(let j=0; j<txt.length; j++) {
-                if(txt[j] === target) {
-                    if(j+1 < txt.length && smallKana.includes(txt[j+1])) skipped++;
-                    else {
-                        matches.push({ name: s.name, content: s.content, filename: s.filename, pos: j, target, type:'single', len:1, idx: index });
-                    }
-                }
+            const src = getSearchSource(s);
+            let pos = src.indexOf(char);
+            while(pos !== -1) {
+                matches.push({ 
+                    name: s.name, 
+                    content: s.content,
+                    kana: s.kana,
+                    romaji: s.romaji,
+                    filename: s.filename, 
+                    pos, 
+                    target: char, 
+                    type:'single', 
+                    len: 1, 
+                    idx: index 
+                });
+                pos = src.indexOf(char, pos+1);
             }
         });
-        // Sort by score
-        matches.sort((a,b) => calculateScore(b.pos, b.content) - calculateScore(a.pos, a.content));
-        return { matches, skipped };
+        matches.sort((a,b) => calculateScore(b.pos) - calculateScore(a.pos));
+        return { matches, skipped: 0 };
     }
 
-    // --- Gojyuon Table ---
-    function renderGojyuonTransposed(usedSet) {
+    function renderGojyuonTable(text) {
         const wrapper = document.createElement('div'); wrapper.className = 'table-wrapper';
         const grid = document.createElement('div'); grid.className = 'gojyuon-grid';
         wrapper.appendChild(grid); els.display.appendChild(wrapper);
+        
+        const usedSet = new Set(text.split('').filter(c => c !== ' '));
         const cols = [ ['あ','い','う','え','お'], ['か','き','く','け','こ'], ['さ','し','す','せ','そ'], ['た','ち','つ','て','と'], ['な','に','ぬ','ね','の'], ['は','ひ','ふ','へ','ほ'], ['ま','み','む','め','も'], ['や','','ゆ','','よ'], ['ら','り','る','れ','ろ'], ['わ','','を','','ん'], ['が','ぎ','ぐ','げ','ご'], ['ざ','じ','ず','ぜ','ぞ'], ['だ','ぢ','づ','で','ど'], ['ば','び','ぶ','べ','ぼ'], ['ぱ','ぴ','ぷ','ぺ','ぽ'] ];
+        
         for(let r=0; r<5; r++) {
             for(let c=0; c<cols.length; c++) {
-                const char = cols[c][r];
-                const cell = document.createElement('div'); cell.className = 'gojyuon-cell';
-                if(char) {
-                    cell.textContent = char;
-                    const res = searchMono(char, -1);
-                    const count = res.matches.length;
-                    if(count === 0) cell.classList.add('heat-0');
-                    else if(count < 3) cell.classList.add('heat-1');
-                    else cell.classList.add('heat-3');
-                    if(usedSet.has(toHiragana(char))) cell.classList.add('used');
-                    cell.addEventListener('mouseenter', e => onMapHover(e, char, res));
-                    cell.addEventListener('mouseleave', hideTooltip);
-                    cell.addEventListener('click', () => onMapClick(char, res));
-                } else { cell.classList.add('empty'); }
-                grid.appendChild(cell);
+                createCell(grid, cols[c][r], usedSet);
             }
         }
     }
 
-    // --- Interaction ---
+    function renderRomajiTable(text) {
+        const wrapperV = document.createElement('div'); wrapperV.className = 'table-wrapper';
+        wrapperV.innerHTML = "<h3 style='font-size:0.8rem; margin:0 0 5px 0;'>母音</h3>";
+        const gridV = document.createElement('div'); gridV.className = 'romaji-grid';
+        wrapperV.appendChild(gridV); els.display.appendChild(wrapperV);
+        
+        const usedSet = new Set(text.split('').filter(c => c !== ' '));
+        ['a','i','u','e','o'].forEach(char => createCell(gridV, char, usedSet));
+
+        const wrapperC = document.createElement('div'); wrapperC.className = 'table-wrapper'; wrapperC.style.marginTop="20px";
+        wrapperC.innerHTML = "<h3 style='font-size:0.8rem; margin:0 0 5px 0;'>全アルファベット (子音含む)</h3>";
+        const gridC = document.createElement('div'); gridC.className = 'romaji-grid';
+        wrapperC.appendChild(gridC); els.display.appendChild(wrapperC);
+
+        const alphabets = "bcdfghjklmnpqrstvwxyz".split('');
+        alphabets.forEach(char => createCell(gridC, char, usedSet));
+    }
+
+    function createCell(container, char, usedSet) {
+        const cell = document.createElement('div'); cell.className = 'cell-box';
+        if(char) {
+            cell.textContent = char;
+            const res = searchMono(char, -1);
+            const count = res.matches.length;
+            if(count === 0) cell.classList.add('heat-0');
+            else if(count < 3) cell.classList.add('heat-1');
+            else cell.classList.add('heat-3');
+            
+            if(usedSet.has(char)) cell.classList.add('used');
+            
+            cell.addEventListener('mouseenter', e => onMapHover(e, char, res));
+            cell.addEventListener('mouseleave', hideTooltip);
+            cell.addEventListener('click', () => onMapClick(char, res));
+        } else { cell.classList.add('empty'); }
+        container.appendChild(cell);
+    }
+
     function onLyricsHover(e, index) {
         if(pinnedLookup[index]) {
             const p = pinnedLookup[index];
+            const srcText = (currentMode === 'kana') ? p.kana : p.romaji;
             let h = `<div class="tt-pinned-header">【確定済み】${escapeHtml(p.target)}</div>`;
-            h += `<div class="tt-row"><small>${escapeHtml(p.name)}</small></div>`;
-            if(p.filename) h += `<div class="tt-file">${escapeHtml(p.filename)}</div>`;
-            h += `<div class="tt-row" style="font-size:0.75rem;">${getSnippet(p.content, p.target, p.pos)}</div>`;
+            h += `<div class="tt-row" style="flex-direction:column; gap:2px;">
+                    <small>${escapeHtml(p.name)}</small>
+                    <div class="tt-reading">${getHighlightedSnippet(srcText, p.pos, p.target.length)}</div>
+                  </div>`;
+            h += `<div class="tt-file">${escapeHtml(p.filename)}</div>`;
             showTooltip(e, h);
             return;
         }
 
         const seqs = searchSequence(index);
-        const char = lyricsText[index];
+        const char = (currentMode === 'kana' ? lyricsData.kana : lyricsData.romaji)[index];
         const mono = searchMono(char, index);
+        
         if(!seqs.length && !mono.matches.length) return;
 
         const len = seqs.length ? seqs[0].len : 1;
-        let el = e.target;
+        // Highlighting Logic Update: Use ID 
         for(let k=0; k<len; k++) {
-            if(el && el.classList.contains('char-span')) {
-                el.classList.add('active-highlight');
-                el = el.nextElementSibling;
-            }
+            const targetId = `char-${index + k}`;
+            const el = document.getElementById(targetId);
+            if(el) el.classList.add('active-highlight');
         }
 
         let h = "";
         if(seqs.length > 0) {
             const best = seqs[0];
-            h += `<div class="tt-header">${best.len}文字: "${escapeHtml(best.target)}" (${best.matches.length})</div>`;
+            h += `<div class="tt-header">${best.len}連: "${escapeHtml(best.target)}" (${best.matches.length})</div>`;
             best.matches.slice(0, 3).forEach(m => {
+                const srcText = (currentMode === 'kana') ? m.kana : m.romaji;
                 h += `<div class="tt-row">
                     <div style="flex:1;">
-                        <div style="font-size:0.7rem; color:#94a3b8;">${escapeHtml(m.name)}</div>
-                        <div>${getSnippet(m.content, m.target, m.pos)}</div>
-                        ${m.filename ? `<div class="tt-file">${escapeHtml(m.filename)}</div>` : ''}
+                        <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:2px;">${escapeHtml(m.name)}</div>
+                        <div class="tt-reading">${getHighlightedSnippet(srcText, m.pos, m.target.length)}</div>
+                        <div class="tt-file">${escapeHtml(m.filename)}</div>
                     </div>
                 </div>`;
             });
             if(best.matches.length > 3) h += `<div class="tt-row" style="opacity:0.7">...他 ${best.matches.length-3}件</div>`;
         }
+        
         const monoCount = mono.matches.length;
         h += `<div class="tt-header" style="margin-top:8px;">単音: "${char}" (${monoCount})</div>`;
         mono.matches.slice(0, 3).forEach(m => {
-            h += `<div class="tt-row">
+            const srcText = (currentMode === 'kana') ? m.kana : m.romaji;
+             h += `<div class="tt-row">
                     <div style="flex:1;">
-                        <div style="font-size:0.7rem; color:#94a3b8;">${escapeHtml(m.name)}</div>
-                        <div>${getSnippet(m.content, m.target, m.pos)}</div>
-                         ${m.filename ? `<div class="tt-file">${escapeHtml(m.filename)}</div>` : ''}
+                        <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:2px;">${escapeHtml(m.name)}</div>
+                        <div class="tt-reading">${getHighlightedSnippet(srcText, m.pos, m.target.length)}</div>
+                        <div class="tt-file">${escapeHtml(m.filename)}</div>
                     </div>
                 </div>`;
         });
-        if(monoCount > 3) h += `<div class="tt-row" style="opacity:0.7">...他 ${monoCount-3}件</div>`;
         
         showTooltip(e, h);
     }
@@ -537,12 +910,12 @@
     
     function onLyricsClick(e, index) {
         const seqs = searchSequence(index);
-        const char = lyricsText[index];
+        const char = (currentMode === 'kana' ? lyricsData.kana : lyricsData.romaji)[index];
         const mono = searchMono(char, index);
         
         let html = "";
         seqs.forEach(grp => {
-            html += `<div class="result-group"><div class="result-group-title">${grp.len}文字: "${escapeHtml(grp.target)}"</div>`;
+            html += `<div class="result-group"><div class="result-group-title">${grp.len}連: "${escapeHtml(grp.target)}"</div>`;
             grp.matches.forEach(m => html += makeCard(m));
             html += `</div>`;
         });
@@ -551,14 +924,18 @@
         mono.matches.forEach(m => html += makeCard(m));
         html += `</div>`;
         els.results.innerHTML = html;
-        log(`選択: "${char}"`);
     }
 
     function onMapHover(e, char, res) {
         let h = `<div class="tt-header">音素 "${char}" (${res.matches.length})</div>`;
-        if(res.skipped > 0) h += `<div class="tt-row" style="color:#fcd34d;">拗音除外: ${res.skipped}</div>`;
         res.matches.slice(0, 5).forEach(m => {
-            h += `<div class="tt-row"><small>${escapeHtml(m.name)}</small><div>${getSnippet(m.content, m.target, m.pos)}</div></div>`;
+             const srcText = (currentMode === 'kana') ? m.kana : m.romaji;
+             h += `<div class="tt-row">
+                    <div style="flex:1;">
+                        <small>${escapeHtml(m.name)}</small>
+                        <div class="tt-reading" style="font-size:0.8rem;">${getHighlightedSnippet(srcText, m.pos, m.target.length)}</div>
+                    </div>
+                   </div>`;
         });
         showTooltip(e, h);
     }
@@ -568,27 +945,24 @@
         res.matches.forEach(m => html += makeCard(m));
         html += `</div>`;
         els.results.innerHTML = html;
-        log(`表示: 音素 "${char}"`);
     }
 
     function togglePin(match) {
         const key = match.idx;
         const currentPin = pinnedState[key];
-        const isThisPinned = currentPin && currentPin.content === match.content && currentPin.pos === match.pos && currentPin.target === match.target;
+        const isThisPinned = currentPin && currentPin.filename === match.filename && currentPin.pos === match.pos && currentPin.target === match.target;
         
         if (isThisPinned) {
             delete pinnedState[key];
             updateLyricsVisuals(match.idx, match.len, false);
             for(let k=0; k<match.len; k++) pinnedLookup[match.idx + k] = null;
-            log(`ピン解除: ${match.target}`);
         } else {
             pinnedState[key] = match;
             updateLyricsVisuals(match.idx, match.len, true);
             for(let k=0; k<match.len; k++) pinnedLookup[match.idx + k] = match;
-            log(`ピン留め: ${match.target} (${match.name})`);
         }
         
-        const char = lyricsText[match.idx];
+        const char = (currentMode === 'kana' ? lyricsData.kana : lyricsData.romaji)[match.idx];
         if(char) onLyricsClick(null, match.idx);
         renderSequenceList();
     }
@@ -618,16 +992,11 @@
             const m = pinnedState[idx];
             html += `
             <div class="seq-item">
-                <div class="seq-header">
-                    <div class="seq-info-group">
-                        <div class="seq-lyric">${escapeHtml(m.target)}</div>
-                        <div class="seq-meta">
-                            <span>${escapeHtml(m.name)}</span>
-                            ${m.filename ? `<span class="seq-filename">${escapeHtml(m.filename)}</span>` : ''}
-                        </div>
-                    </div>
+                <div class="seq-lyric">${escapeHtml(m.target)}</div>
+                <div style="flex:1; overflow:hidden;">
+                    <div class="seq-meta">${escapeHtml(m.name)}</div>
+                    <div class="seq-meta" style="font-size:0.7rem; color:#94a3b8;">${escapeHtml(m.filename)}</div>
                 </div>
-                <div class="seq-content">${getSnippet(m.content, m.target, m.pos)}</div>
             </div>`;
             if(i < indices.length - 1) {
                 html += `<div class="seq-arrow">↓</div>`;
@@ -640,7 +1009,7 @@
         let isPinned = false;
         if(m.idx !== undefined && pinnedState[m.idx]) {
             const p = pinnedState[m.idx];
-            if(p.content === m.content && p.pos === m.pos && p.target === m.target) isPinned = true;
+            if(p.filename === m.filename && p.pos === m.pos && p.target === m.target) isPinned = true;
         }
         const showPin = (m.idx !== undefined && m.idx >= 0);
         const btnClass = isPinned ? "btn-pin pinned" : "btn-pin";
@@ -649,15 +1018,21 @@
         window.tempMatches = window.tempMatches || [];
         const matchId = window.tempMatches.length;
         window.tempMatches.push(m);
+        
+        const srcText = (currentMode === 'kana') ? m.kana : m.romaji;
 
         let html = `
         <div class="result-card">
             <div class="card-header">
                 <span>${escapeHtml(m.name)}</span>
                 <span class="card-badge">${m.type==='single'?'単音':m.len+'連'}</span>
-            </div>`;
+            </div>
+            
+            <div class="card-reading-row">
+                ${getHighlightedSnippet(srcText, m.pos, m.target.length)}
+            </div>
+            `;
         
-        // Filename & Copy Row
         if(m.filename) {
             const safeFile = escapeHtml(m.filename).replace(/'/g, "\\'");
             html += `
@@ -667,23 +1042,11 @@
             </div>`;
         }
 
-        html += `
-            <div class="card-content">
-                ${getSnippet(m.content, m.target, m.pos)}
-            </div>`;
         if(showPin) {
             html += `<button class="${btnClass}" onclick="handlePin(${matchId})">${btnText}</button>`;
         }
         html += `</div>`;
         return html;
-    }
-    
-    // Increased context range (approx 15 chars)
-    function getSnippet(text, target, idx) {
-        const radius = 15; 
-        const start = Math.max(0, idx - radius);
-        const end = Math.min(text.length, idx + target.length + radius);
-        return `${start>0?'...':''}${escapeHtml(text.substring(start, idx))}<span class="highlight-text">${escapeHtml(text.substring(idx, idx + target.length))}</span>${escapeHtml(text.substring(idx + target.length, end))}${end<text.length?'...':''}`;
     }
 
     window.handlePin = function(id) { const m = window.tempMatches[id]; togglePin(m); };
@@ -716,6 +1079,10 @@
         if(y + rect.height > window.innerHeight) y = e.clientY - rect.height - gap;
         els.tooltip.style.left = x + 'px';
         els.tooltip.style.top = y + 'px';
+    }
+
+    if(typeof kuromoji !== 'undefined') {
+        onKuromojiLoaded();
     }
 </script>
 </body>
