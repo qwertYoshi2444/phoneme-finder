@@ -187,6 +187,27 @@
         .tt-row { margin-bottom: 8px; color: #e2e8f0; display: flex; gap: 10px; line-height: 1.4; align-items: baseline; }
         .tt-reading { font-size: 0.9rem; color: #fff; margin-bottom: 2px; }
         .tt-file { font-family: monospace; font-size: 0.7rem; color: #94a3b8; display: block; opacity: 0.8; word-break: break-all; }
+        
+        /* --- v21 追加スタイル --- */
+        .input-group { margin-bottom: 10px; }
+        .char-name-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.8rem; background: #f8fafc; }
+        
+        /* D&D時のハイライト */
+        #input-serifu.drag-active { background-color: #eff6ff; border: 2px dashed var(--accent); color: var(--accent); }
+        
+        /* 波形Canvas */
+        .wave-canvas {
+            width: 100%; height: 60px; background: #f8fafc; border-radius: 4px;
+            cursor: pointer; margin-top: 5px; border: 1px solid #e2e8f0; display: block;
+        }
+        .wave-canvas:hover { border-color: var(--accent); background: #fff; }
+        .wave-canvas:active { background: #eff6ff; }
+
+        /* テンションバッジ */
+        .tension-badge { font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; color: #fff; margin-left: 4px; font-weight: normal; }
+        .t-high   { background-color: #ef4444; }
+        .t-normal { background-color: #10b981; }
+        .t-low    { background-color: #6366f1; }
     </style>
 </head>
 <body>
@@ -212,6 +233,10 @@
         <div>
             <label for="input-lyrics">歌詞 (日本語のみ対応)</label>
             <textarea id="input-lyrics" placeholder="歌詞データを入力..."></textarea>
+        </div>
+        <div class="input-group">
+            <label for="input-charname">キャラ名 (D&amp;D自動入力用)</label>
+            <input type="text" id="input-charname" class="char-name-input" placeholder="例: Miku">
         </div>
         <div>
             <label for="input-serifu">セリフ素材 (キャラ名@セリフ#)</label>
@@ -432,7 +457,11 @@
     let pinnedLookup = [];
     let converter = new TextConverter();
     let isConverterReady = false;
-
+    
+    // --- v21 Global Audio Manager ---
+    const audioRegistry = new Map(); // Key: "Name@Filename", Value: { blob, buffer, tension }
+    let audioCtx = null;
+    
     const els = {
         btn: document.getElementById('btn-analyze'),
         log: document.getElementById('log-area'),
@@ -487,7 +516,54 @@
         if(text) els.pText.textContent = text;
     }
     function escapeHtml(str) { if(!str) return ""; return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+    
+    // --- v21 Helper Functions ---
+    function analyzeTension(text) {
+        if (/[！!]{2,}|[?!？！]{2,}/.test(text)) return 'High';
+        if (/[…\.]{2,}|[、,]{2,}/.test(text)) return 'Low';
+        return 'Normal';
+    }
 
+    // D&D Setup
+    (function setupDragAndDrop() {
+        const area = els.serifu;
+        const charInput = document.getElementById('input-charname');
+
+        area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag-active'); });
+        area.addEventListener('dragleave', () => area.classList.remove('drag-active'));
+        
+        area.addEventListener('drop', e => {
+            e.preventDefault();
+            area.classList.remove('drag-active');
+            
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
+            if (files.length === 0) return;
+
+            const charName = charInput.value.trim() || 'Unknown';
+            let newText = "";
+            
+            files.forEach(file => {
+                // 拡張子を除去してセリフとみなす
+                const rawSerif = file.name.replace(/\.[^/.]+$/, "");
+                const tension = analyzeTension(rawSerif);
+                
+                // データID: "CharName@Filename" (Mapのキーにする)
+                const dataKey = `${charName}@${file.name}`; 
+                
+                // Blobを保存
+                audioRegistry.set(dataKey, { blob: file, buffer: null, tension: tension });
+
+                // テキストエリア用のフォーマット: "CharName@Filename#"
+                // ※ファイル名をそのままセリフ欄に入れる運用を想定
+                newText += `${charName}@${file.name}#\n`;
+            });
+
+            const currentVal = area.value;
+            area.value = currentVal + (currentVal.endsWith('\n') ? '' : '\n') + newText;
+            log(`[D&D] 音声ファイル${files.length}件を追加しました。「分析開始」を押してください。`);
+        });
+    })();
+    
     els.btn.addEventListener('click', async () => {
         els.btn.disabled = true;
         els.log.textContent = "";
@@ -517,12 +593,18 @@
                     const filename = parts[1].trim();
                     const conv = converter.process(filename);
                     
+                    // v21: レジストリからテンション情報を検索
+                    const regKey = `${name}@${filename}`;
+                    const audioInfo = audioRegistry.get(regKey);
+                    const tension = audioInfo ? audioInfo.tension : analyzeTension(filename);
+
                     serifuData.push({ 
                         name: name, 
                         filename: filename,
                         content: filename, 
                         kana: conv.hiragana,
-                        romaji: conv.romaji
+                        romaji: conv.romaji,
+                        tension: tension // 追加
                     });
                 }
             }
@@ -717,10 +799,17 @@
         return false;
     }
     
-    function calculateScore(pos) {
-        if(pos === 0) return 100;
-        if(pos < 5) return 80;
-        return 50;
+    function calculateScore(item) {
+        let score = 100;
+        // 位置による加点 (文頭優先)
+        if(item.pos === 0) score += 20;
+        else if(item.pos < 5) score += 10;
+        
+        // テンションによる加点 (Normal優先)
+        if (item.tension === 'Normal') score += 20;
+        else if (item.tension === 'High') score -= 10; // Highは使いにくいので下げる
+        
+        return score;
     }
 
     function searchSequence(index) {
@@ -921,6 +1010,7 @@
         mono.matches.forEach(m => html += makeCard(m));
         html += `</div>`;
         els.results.innerHTML = html;
+        initWaveforms(); // <--- v21追加: Canvasを初期化
     }
 
     function onMapHover(e, char, res) {
@@ -942,6 +1032,7 @@
         res.matches.forEach(m => html += makeCard(m));
         html += `</div>`;
         els.results.innerHTML = html;
+        initWaveforms(); // <--- v21追加: Canvasを初期化
     }
 
     function togglePin(match) {
@@ -1006,6 +1097,7 @@
         let isPinned = false;
         if(m.idx !== undefined && pinnedState[m.idx]) {
             const p = pinnedState[m.idx];
+            // 厳密な比較
             if(p.filename === m.filename && p.pos === m.pos && p.target === m.target) isPinned = true;
         }
         const showPin = (m.idx !== undefined && m.idx >= 0);
@@ -1017,25 +1109,38 @@
         window.tempMatches.push(m);
         
         const srcText = (currentMode === 'kana') ? m.kana : m.romaji;
+        const tensionClass = m.tension ? `t-${m.tension.toLowerCase()}` : 't-normal';
+        const tensionLabel = m.tension || 'Normal';
 
+        // v21: 波形表示用のCanvasタグを含める (ID付与)
+        // audioRegistryキーの再構築
+        const regKey = `${m.name}@${m.filename}`;
+        const hasAudio = audioRegistry.has(regKey);
+        
         let html = `
         <div class="result-card">
             <div class="card-header">
-                <span>${escapeHtml(m.name)}</span>
-                <span class="card-badge">${m.type==='single'?'単音':m.len+'連'}</span>
+                <div>
+                    <span>${escapeHtml(m.name)}</span>
+                    <span class="card-badge">${m.type==='single'?'単音':m.len+'連'}</span>
+                    <span class="tension-badge ${tensionClass}">${tensionLabel}</span>
+                </div>
             </div>
             
             <div class="card-reading-row">
                 ${getHighlightedSnippet(srcText, m.pos, m.target.length)}
-            </div>
-            `;
+            </div>`;
         
+        // 波形Canvas (音声がある場合のみプレースホルダを作成)
+        if (hasAudio) {
+            html += `<canvas class="wave-canvas" data-key="${escapeHtml(regKey)}" width="300" height="60"></canvas>`;
+        }
+
         if(m.filename) {
             const safeFile = escapeHtml(m.filename).replace(/'/g, "\\'");
             html += `
             <div class="card-file-row">
                 <div class="card-filename" title="${safeFile}">${safeFile}</div>
-                <button class="btn-copy" onclick="copyToClipboard('${safeFile}')">Copy</button>
             </div>`;
         }
 
@@ -1077,7 +1182,96 @@
         els.tooltip.style.left = x + 'px';
         els.tooltip.style.top = y + 'px';
     }
+    
+    // --- v21 Waveform Logic ---
+    function initWaveforms() {
+        const canvases = document.querySelectorAll('.wave-canvas');
+        canvases.forEach(cvs => {
+            const key = cvs.dataset.key;
+            const data = audioRegistry.get(key);
+            if(!data) return;
 
+            // マウス操作: 押している間再生
+            let source = null;
+
+            const stop = () => {
+                if(source) { try{ source.stop(); }catch(e){} source = null; }
+            };
+
+            const play = async (e) => {
+                if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioCtx.state === 'suspended') await audioCtx.resume();
+
+                // デコード (初回のみ)
+                if(!data.buffer) {
+                    // 描画中に「ロード中」とか出せるとベストだが簡易化
+                    const arr = await data.blob.arrayBuffer();
+                    data.buffer = await audioCtx.decodeAudioData(arr);
+                    drawWaveform(cvs, data.buffer); // デコード完了したら描画
+                }
+
+                if(!data.buffer) return;
+
+                stop(); // 既存再生を停止
+                
+                // 開始位置計算
+                const rect = cvs.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const ratio = Math.max(0, Math.min(1, x / rect.width));
+                const startTime = data.buffer.duration * ratio;
+
+                source = audioCtx.createBufferSource();
+                source.buffer = data.buffer;
+                source.connect(audioCtx.destination);
+                source.start(0, startTime);
+            };
+
+            // イベント登録
+            cvs.addEventListener('mousedown', play);
+            cvs.addEventListener('mouseup', stop);
+            cvs.addEventListener('mouseleave', stop);
+
+            // 初回描画 (もし既にデコード済みなら即描画、そうでなければデコード待ち)
+            if(data.buffer) {
+                drawWaveform(cvs, data.buffer);
+            } else {
+                // 未デコード時は簡易的な線を表示しておく
+                const ctx = cvs.getContext('2d');
+                ctx.fillStyle = "#f1f5f9"; ctx.fillRect(0,0,300,60);
+                ctx.fillStyle = "#cbd5e1"; ctx.fillText("Click to Load Wave", 100, 35);
+            }
+        });
+    }
+
+    function drawWaveform(canvas, buffer) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const data = buffer.getChannelData(0);
+        const step = Math.ceil(data.length / w);
+        const amp = h / 2;
+
+        ctx.clearRect(0,0,w,h);
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0,0,w,h);
+        
+        ctx.beginPath();
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 1;
+
+        for(let i=0; i<w; i++) {
+            let min = 1.0, max = -1.0;
+            for(let j=0; j<step; j++) {
+                const datum = data[i*step + j];
+                if(datum < min) min = datum;
+                if(datum > max) max = datum;
+            }
+            ctx.moveTo(i, (1+min)*amp);
+            ctx.lineTo(i, (1+max)*amp);
+        }
+        ctx.stroke();
+    }
+    
     if(typeof kuromoji !== 'undefined') {
         onKuromojiLoaded();
     }
