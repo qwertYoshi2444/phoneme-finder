@@ -329,7 +329,7 @@
                 if(!isKuromojiLoaded || typeof kuromoji === 'undefined') {
                     return reject(new Error("ライブラリがまだ読み込まれていません。"));
                 }
-                const DIC_URL = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
+                const DIC_URL = "./dict/";
                 kuromoji.builder({ dicPath: DIC_URL }).build((err, tokenizer) => {
                     if (err) return reject(err);
                     this.tokenizer = tokenizer;
